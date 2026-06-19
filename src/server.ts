@@ -2,10 +2,14 @@ import fastify from "fastify";
 import cors from "@fastify/cors";
 import { PrismaClient } from "@prisma/client";
 
+
+
 const server = fastify({ logger: true });
 const prisma = new PrismaClient();
 
 server.register(cors, { origin: "*" });
+
+
 
 server.get("/teams", async (_, reply) => {
   const teams = await prisma.team.findMany({ include: { drivers: true } });

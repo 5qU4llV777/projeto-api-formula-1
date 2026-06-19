@@ -1,0 +1,123 @@
+
+<h2 class="sr-only">Buscador de títulos da Fórmula 1 por piloto</h2>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.hero {
+  width: 100%;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: #0f0f1a;
+  padding: 1.25rem;
+}
+.hero-thumb {
+  width: 120px;
+  height: 90px;
+  border-radius: var(--border-radius-md);
+  object-fit: cover;
+  object-position: center;
+  flex-shrink: 0;
+  display: block;
+}
+.hero-thumb-fallback {
+  width: 120px;
+  height: 90px;
+  border-radius: var(--border-radius-md);
+  background: #1a1a2e;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-content { flex: 1; }
+.hero-title { font-size: 20px; font-weight: 500; color: #fff; }
+.hero-sub { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+.container { padding: 0 0 1.5rem; }
+.search-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+.search-row input { flex: 1; }
+.result-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+.driver-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.driver-avatar { width: 48px; height: 48px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 15px; color: #3C3489; flex-shrink: 0; }
+.driver-name { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.driver-sub { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.titles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.title-item { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.title-year { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.title-team { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; background: #EEEDFE; color: #3C3489; font-size: 12px; padding: 3px 10px; border-radius: 99px; font-weight: 500; }
+.error { color: var(--color-text-danger); font-size: 14px; padding: 1rem 0; }
+.loading { color: var(--color-text-secondary); font-size: 14px; padding: 1rem 0; display: flex; align-items: center; gap: 8px; }
+</style>
+
+<div class="container">
+  <div class="hero">
+    <img
+      class="hero-thumb"
+      src="https://blog.balaclavaf1.com.br/wp-content/uploads/2022/01/Ayrton-Senna-Lotus.jpg"
+      alt="Ayrton Senna na Lotus"
+      onerror="this.outerHTML='<div class=\'hero-thumb-fallback\'><i class=\'ti ti-car\' style=\'font-size:32px;color:rgba(255,255,255,0.3)\'></i></div>'"
+    />
+    <div class="hero-content">
+      <div class="hero-title">Títulos da Fórmula 1</div>
+      <div class="hero-sub">Busque pelo nome do piloto e veja seus campeonatos</div>
+    </div>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder="Ex: Hamilton, Verstappen, Senna..." />
+    <button onclick="buscar()"><i class="ti ti-search" aria-hidden="true"></i> Buscar</button>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const input = document.getElementById('search-input');
+const resultEl = document.getElementById('result');
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter') buscar(); });
+
+function initials(name) {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+async function buscar() {
+  const name = input.value.trim();
+  if (!name) return;
+  resultEl.innerHTML = '<div class="loading"><i class="ti ti-loader" aria-hidden="true"></i> Buscando...</div>';
+  try {
+    const res = await fetch(`http://localhost:3333/championships/driver/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      resultEl.innerHTML = `<div class="error"><i class="ti ti-alert-circle" aria-hidden="true"></i> Piloto não encontrado. Tente outro nome.</div>`;
+      return;
+    }
+    const titlesHtml = data.championships.length === 0
+      ? '<p style="color:var(--color-text-secondary); font-size:14px;">Nenhum título encontrado.</p>'
+      : `<div class="titles-grid">${data.championships.map(c => `
+          <div class="title-item">
+            <div class="title-year">${c.year}</div>
+            <div class="title-team">${c.team}</div>
+          </div>`).join('')}</div>`;
+    resultEl.innerHTML = `
+      <div class="result-card">
+        <div class="driver-header">
+          <div class="driver-avatar">${initials(data.driver)}</div>
+          <div>
+            <div class="driver-name">${data.driver}</div>
+            <div class="driver-sub">
+              <span class="badge"><i class="ti ti-trophy" aria-hidden="true"></i> ${data.totalTitles} título${data.totalTitles !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </div>
+        ${titlesHtml}
+      </div>`;
+  } catch (e) {
+    resultEl.innerHTML = `<div class="error"><i class="ti ti-wifi-off" aria-hidden="true"></i> Não foi possível conectar ao servidor. Verifique se ele está rodando em localhost:3333.</div>`;
+  }
+}
+</script>
